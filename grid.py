@@ -9,13 +9,12 @@ class Location:
         self.location=(float(lat),float(lon))
         self.data=[]
         for pack in data:
-            if pack:
-                self.data.append(pack.upper())
+            self.data.append(pack.upper())
     def __repr__(self):
         return self.name + "-" + str(self.location) 
-def readInput():
+def readInput(filename):
     inputData=[]
-    with open('data.csv', 'rb') as csvfile:
+    with open(filename, 'rb') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
         for row in spamreader:
             name = row[0]+row[1]
@@ -25,7 +24,12 @@ def readInput():
             x = Location(name,lat,lon,data)
             inputData.append(x)
     return inputData
-
+def writeout(filename,data):
+    with open(filename, 'wb') as csvfile:
+        spamwriter = csv.writer(csvfile, delimiter=',',
+                            quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        for row in data:
+            spamwriter.writerow(row)
 def distance(lat1,lon1,lat2,lon2):
     R=6371.0
     dLat = deg2rad(lat2-lat1)
@@ -41,15 +45,25 @@ def deg2rad(deg):
 
 from collections import defaultdict
 
+class Spot:
+    def __init__(self,name,pos):
+        self.name=name
+        self.pos=pos
+    def __repr__(self):
+        return self.name + "-" + str(self.pos) 
+
+
 def pivotData(data):
     groups=defaultdict(set)
     for location in data:
         for pack in location.data:
-            groups[pack].add(location)
+            if pack:
+                groups[pack].add(location)
     return groups
 
 
-data=readInput()
+data=readInput('data.csv')
+newGrid=readInput('next.csv')
 packs= pivotData(data)
 for (x,y) in packs.iteritems():
     print str(x) + "-- " + str(y)
@@ -64,5 +78,19 @@ for l in data:
     maxlat = max(maxlat,l.location[0])
     maxlon = max(maxlon,l.location[1])
 
-print (minlat,minlon,maxlat,maxlon)
 print distance(minlat,minlon,maxlat,maxlon)
+
+availables=[]
+for loc in newGrid:
+    for i,spot in enumerate(loc.data):
+        if spot=="O":
+            availables.append(Spot(loc.name, i))
+import random
+while availables:
+    x= random.choice(availables)
+    print x
+    print len(availables)
+    availables.remove(x)
+
+print availables
+writeout('foo.csv',[['hi','hi'],[1,2]])
