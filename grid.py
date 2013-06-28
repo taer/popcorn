@@ -2,7 +2,7 @@
 
 import math
 import csv
-
+DISTANCE=10
 class Location:
     def __init__(self,name,lat,lon,data):
         self.name=name
@@ -29,8 +29,11 @@ def writeout(filename,data):
         spamwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for row in data:
-            spamwriter.writerow(row)
-def distance(lat1,lon1,lat2,lon2):
+            spamwriter.writerow((row.name,)+row.location+tuple(row.data))
+def distance(location1,location2):
+    lat1,lon1 = location1
+    lat2,lon2 = location2
+
     R=6371.0
     dLat = deg2rad(lat2-lat1)
     dLon = deg2rad(lon2-lon1) 
@@ -46,19 +49,38 @@ def deg2rad(deg):
 from collections import defaultdict
 
 class Spot:
-    def __init__(self,name,pos):
+    def __init__(self,name,pos,location):
         self.name=name
+        self.location=location
         self.pos=pos
     def __repr__(self):
-        return self.name + "-" + str(self.pos) 
+        return self.name + "-" + str(self.location) 
 
-
+class PackData:
+    def __init__(self,name):
+        self.name=name
+        self.places=set()
+        self.lon=0
+        self.lat=0
+        self.count=0
+    def updateLocation(self,location):
+        self.lat = self.lat+location[0]
+        self.lon = self.lon+location[1]
+        self.count=self.count+1
+    def getLocation(self):
+        return (self.lat/self.count , self.lon/self.count)
+    def __repr__(self):
+        return self.name + "-" + str(self.getLocation()) + "-" + str(self.places) 
 def pivotData(data):
-    groups=defaultdict(set)
-    for location in data:
-        for pack in location.data:
+    groups={}
+    for row in data:
+        for pack in row.data:
             if pack:
-                groups[pack].add(location)
+                if pack not in groups:
+                    groups[pack]=PackData(pack)
+                groups[pack].places.add(row.name)
+                groups[pack].updateLocation(row.location)
+
     return groups
 
 
@@ -78,19 +100,47 @@ for l in data:
     maxlat = max(maxlat,l.location[0])
     maxlon = max(maxlon,l.location[1])
 
-print distance(minlat,minlon,maxlat,maxlon)
+print distance( (minlat,minlon),(maxlat,maxlon))
 
+output={}
 availables=[]
 for loc in newGrid:
+    output[loc.name]=loc
     for i,spot in enumerate(loc.data):
         if spot=="O":
-            availables.append(Spot(loc.name, i))
+            availables.append(Spot(loc.name, i,loc.location))
 import random
-while availables:
-    x= random.choice(availables)
-    print x
-    print len(availables)
-    availables.remove(x)
+random.shuffle(availables)
+packlist = list(packs.keys())
 
-print availables
-writeout('foo.csv',[['hi','hi'],[1,2]])
+def packParticipated(slot,packData):
+    return slot.name in packData.places
+def packClose(slot,packData):
+    if random.randint(0,100) < 5:
+        return distance(slot.location,packData.getLocation()) < DISTANCE
+    return False
+
+def isSlotDesired(slot,packdata):
+    return packParticipated(slot,packdata) or packClose(slot,packdata) or random.randint(0,500) < 5
+
+def findASlotForPack(packData):
+    print len(availables)
+    #print packData.name
+    slot = availables.pop(0)
+    x=0
+    while not isSlotDesired(slot, packData):
+        x=x+1
+        availables.append(slot)
+        slot = availables.pop(0)
+    return slot
+
+while availables:
+    pack =packlist.pop(0)
+    #print "filling pack " + pack
+    slot = findASlotForPack(packs[pack])
+    packlist.append(pack)
+    output[slot.name].data[slot.pos]=pack
+    #print slot
+
+
+writeout('foo.csv',output.itervalues())
