@@ -1,4 +1,6 @@
 #!/usr/bin/python
+import random
+from collections import defaultdict
 
 import math
 import csv
@@ -46,7 +48,6 @@ def distance(location1,location2):
 def deg2rad(deg):
     return deg * (math.pi/180)
 
-from collections import defaultdict
 
 class Spot:
     def __init__(self,name,pos,location):
@@ -83,36 +84,6 @@ def pivotData(data):
 
     return groups
 
-
-data=readInput('data.csv')
-newGrid=readInput('next.csv')
-packs= pivotData(data)
-for (x,y) in packs.iteritems():
-    print str(x) + "-- " + str(y)
-
-minlon=100000
-maxlon=-10000
-minlat=100000
-maxlat=-10000
-for l in data:
-    minlat = min(minlat,l.location[0])
-    minlon = min(minlon,l.location[1])
-    maxlat = max(maxlat,l.location[0])
-    maxlon = max(maxlon,l.location[1])
-
-print distance( (minlat,minlon),(maxlat,maxlon))
-
-output={}
-availables=[]
-for loc in newGrid:
-    output[loc.name]=loc
-    for i,spot in enumerate(loc.data):
-        if spot=="O":
-            availables.append(Spot(loc.name, i,loc.location))
-import random
-random.shuffle(availables)
-packlist = list(packs.keys())
-
 def packParticipated(slot,packData):
     return slot.name in packData.places
 def packClose(slot,packData):
@@ -123,8 +94,8 @@ def packClose(slot,packData):
 def isSlotDesired(slot,packdata):
     return packParticipated(slot,packdata) or packClose(slot,packdata) or random.randint(0,500) < 5
 
-def findASlotForPack(packData):
-    print len(availables)
+def findASlotForPack(packData,availables):
+    #print len(availables)
     #print packData.name
     slot = availables.pop(0)
     x=0
@@ -134,10 +105,42 @@ def findASlotForPack(packData):
         slot = availables.pop(0)
     return slot
 
+
+def boundingBox(inputData):
+    minlon=100000
+    maxlon=-10000
+    minlat=100000
+    maxlat=-10000
+    for l in inputData:
+        minlat = min(minlat,l.location[0])
+        minlon = min(minlon,l.location[1])
+        maxlat = max(maxlat,l.location[0])
+        maxlon = max(maxlon,l.location[1])
+
+    return ( (minlat,minlon),(maxlat,maxlon))
+
+data=readInput('data.csv')
+newGrid=readInput('next.csv')
+packs= pivotData(data)
+
+cox= boundingBox(data)
+print cox
+print distance(cox[0],cox[1])
+output={}
+availables=[]
+for loc in newGrid:
+    output[loc.name]=loc
+    for i,spot in enumerate(loc.data):
+        if spot=="O":
+            availables.append(Spot(loc.name, i,loc.location))
+random.shuffle(availables)
+packlist = list(packs.keys())
+
+
 while availables:
     pack =packlist.pop(0)
     #print "filling pack " + pack
-    slot = findASlotForPack(packs[pack])
+    slot = findASlotForPack(packs[pack],availables)
     packlist.append(pack)
     output[slot.name].data[slot.pos]=pack
     #print slot
