@@ -19,6 +19,8 @@ def readInput(filename):
     with open(filename, 'rb') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
         for row in spamreader:
+            if row[0] =="X": 
+                continue
             name = row[0]+row[1]
             lat = row[2]
             lon = row[3]
@@ -26,10 +28,32 @@ def readInput(filename):
             x = Location(name,lat,lon,data)
             inputData.append(x)
     return inputData
-def writeout(filename,data):
+def parseDataJSON(filename):
+    with open(filename, 'rb') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        out={}
+        for row in spamreader:
+            if row[0] =="X": 
+                continue
+            name = row[0]+row[1]
+            lat = row[2]
+            lon = row[3]
+            data=row[4:]
+            out[name]={'pos': (lat,lon), 'data': data}
+        return out
+def writeout(filename,headersFrom, data):
+    with open(headersFrom, 'rb') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        headers=list()
+        for row in spamreader:
+            if row[0] =="X": 
+                headers.append(row)
     with open(filename, 'wb') as csvfile:
         spamwriter = csv.writer(csvfile, delimiter=',',
                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        for row in headers:
+            spamwriter.writerow(row)
+
         for row in data:
             spamwriter.writerow((row.name,)+row.location+tuple(row.data))
 def distance(location1,location2):
@@ -56,22 +80,39 @@ class Spot:
         self.pos=pos
     def __repr__(self):
         return self.name + "-" + str(self.location) 
-
+import clus
+DIAMETER=2 #KM
 class PackData:
     def __init__(self,name):
         self.name=name
         self.places=set()
-        self.lon=0
-        self.lat=0
-        self.count=0
+        self.coor=list()
+        self.center=None
     def updateLocation(self,location):
-        self.lat = self.lat+location[0]
-        self.lon = self.lon+location[1]
-        self.count=self.count+1
+        self.coor.append(location)
     def getLocation(self):
-        return (self.lat/self.count , self.lon/self.count)
+        if self.center:
+            return self.center  
+        self.center=list()
+        clusters = clus.getClustersHier(list(set(self.coor)), DIAMETER)
+        maxWeight=0
+        for cluster in clusters:
+            weight = sum([self.coor.count(x) for x in cluster])
+            maxWeight=max(maxWeight,weight)
+        for cluster in clusters:
+            lon=0
+            lat=0
+            for point in cluster:
+                lon=lon+point[0]
+                lat=lat+point[1]
+            center = (lon/len(cluster),lat/len(cluster))
+            weight = sum([self.coor.count(x) for x in cluster]) / float(maxWeight)
+            self.center.append({'center':center, 'weight':weight})
+
+        return self.center
     def __repr__(self):
         return self.name + "-" + str(self.getLocation()) + "-" + str(self.places) 
+
 def pivotData(data):
     groups={}
     for row in data:
@@ -81,15 +122,14 @@ def pivotData(data):
                     groups[pack]=PackData(pack)
                 groups[pack].places.add(row.name)
                 groups[pack].updateLocation(row.location)
-
+    for pack in groups.values():
+        pack.getLocation()
     return groups
 
 def packParticipated(slot,packData):
     return slot.name in packData.places
 def packClose(slot,packData):
-    if random.randint(0,100) < 5:
-        return distance(slot.location,packData.getLocation()) < DISTANCE
-    return False
+    return True
 
 def isSlotDesired(slot,packdata):
     return packParticipated(slot,packdata) or packClose(slot,packdata) or random.randint(0,500) < 5
@@ -119,31 +159,36 @@ def boundingBox(inputData):
 
     return ( (minlat,minlon),(maxlat,maxlon))
 
-data=readInput('data.csv')
-newGrid=readInput('next.csv')
-packs= pivotData(data)
+def main():
+    data=readInput('data.csv')
+    newGrid=readInput('next.csv')
+    packs= pivotData(data)
 
-cox= boundingBox(data)
-print cox
-print distance(cox[0],cox[1])
-output={}
-availables=[]
-for loc in newGrid:
-    output[loc.name]=loc
-    for i,spot in enumerate(loc.data):
-        if spot=="O":
-            availables.append(Spot(loc.name, i,loc.location))
-random.shuffle(availables)
-packlist = list(packs.keys())
-
-
-while availables:
-    pack =packlist.pop(0)
-    #print "filling pack " + pack
-    slot = findASlotForPack(packs[pack],availables)
-    packlist.append(pack)
-    output[slot.name].data[slot.pos]=pack
-    #print slot
+    cox= boundingBox(data)
+    print cox
+    print distance(cox[0],cox[1])
+    output={}
+    availables=[]
+    for loc in newGrid:
+        output[loc.name]=loc
+        for i,spot in enumerate(loc.data):
+            if spot=="O":
+                availables.append(Spot(loc.name, i,loc.location))
+    random.shuffle(availables)
+    packlist = list(packs.keys())
 
 
-writeout('foo.csv',output.itervalues())
+    while availables:
+        pack =packlist.pop(0)
+        #print "filling pack " + pack
+        slot = findASlotForPack(packs[pack],availables)
+        packlist.append(pack)
+        output[slot.name].data[slot.pos]=pack
+        #print slot
+
+
+    writeout('foo.csv','next.csv', output.itervalues())
+
+
+if __name__ == "__main__":
+    main()
