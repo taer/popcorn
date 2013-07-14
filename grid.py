@@ -191,7 +191,7 @@ def main():
                 availables.append(Spot(loc.name, i,loc.location))
     random.shuffle(availables)
 
-
+    print "filling " + str(len(availables))
     while availables:
         pTuple =picks.pop(0)
         pack,count=pTuple

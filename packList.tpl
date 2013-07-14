@@ -15,7 +15,7 @@
   <body>
   <ul>
   %for row in rows:
-  <li><a href="/pack/{{row}}">{{row}}-heir</a></li>
+  <li><a href="/pack/{{row}}">{{row}}</a></li>
     %end
   </ul>
   </body>
