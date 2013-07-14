@@ -2,7 +2,7 @@ from bottle import route, run, template, request
 import grid
 import clus
 print "loading data"
-foo=grid.readInput('data.csv')
+foo,_=grid.readInput('data.csv')
 print "pivoing data"
 a=grid.pivotData(foo)
 print "complete"

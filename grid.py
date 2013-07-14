@@ -4,7 +4,6 @@ from collections import defaultdict
 
 import math
 import csv
-DISTANCE=10
 class Location:
     def __init__(self,name,lat,lon,data):
         self.name=name
@@ -16,32 +15,29 @@ class Location:
         return self.name + "-" + str(self.location) 
 def readInput(filename):
     inputData=[]
+    packInfo=[]
     with open(filename, 'rb') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
+        mode=0
         for row in spamreader:
             if row[0] =="X": 
-                continue
-            name = row[0]+row[1]
-            lat = row[2]
-            lon = row[3]
-            data=row[4:]
-            x = Location(name,lat,lon,data)
-            inputData.append(x)
-    return inputData
-def parseDataJSON(filename):
-    with open(filename, 'rb') as csvfile:
-        spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
-        out={}
-        for row in spamreader:
-            if row[0] =="X": 
-                continue
-            name = row[0]+row[1]
-            lat = row[2]
-            lon = row[3]
-            data=row[4:]
-            out[name]={'pos': (lat,lon), 'data': data}
-        return out
-def writeout(filename,headersFrom, data):
+                pass
+            elif row[0]=="======":
+                mode=1
+            elif mode==0:
+                name = row[0]+row[1]
+                lat = row[2]
+                lon = row[3]
+                data=row[4:]
+                x = Location(name,lat,lon,data)
+                inputData.append(x)
+            elif mode==1:
+                pac=row[0]
+                picks=int(row[1])
+                packInfo.append( (pac,picks))
+    return (inputData,packInfo)
+
+def writeout(filename,headersFrom, data,picks):
     with open(headersFrom, 'rb') as csvfile:
         spamreader = csv.reader(csvfile, delimiter=',', quotechar='"')
         headers=list()
@@ -56,6 +52,9 @@ def writeout(filename,headersFrom, data):
 
         for row in data:
             spamwriter.writerow((row.name,)+row.location+tuple(row.data))
+        spamwriter.writerow(("======",))
+        for row in picks:
+            spamwriter.writerow(row)
 def distance(location1,location2):
     lat1,lon1 = location1
     lat2,lon2 = location2
@@ -82,6 +81,7 @@ class Spot:
         return self.name + "-" + str(self.location) 
 import clus
 DIAMETER=2 #KM
+DISTANCE=3 #KM
 class PackData:
     def __init__(self,name):
         self.name=name
@@ -129,7 +129,20 @@ def pivotData(data):
 def packParticipated(slot,packData):
     return slot.name in packData.places
 def packClose(slot,packData):
-    return True
+    for center in packData.getLocation():
+        cent = center['center']
+        weight = center['weight']
+        delta= distance(slot.location,cent)
+        prob=0
+        if weight > 0:
+            prob=.2
+        if weight >= .2:
+            prob=.5
+        if weight >= .7:
+            prob=1
+        if delta < DISTANCE and random.randint(0,10) < prob*10:
+            return True
+    return False
 
 def isSlotDesired(slot,packdata):
     return packParticipated(slot,packdata) or packClose(slot,packdata) or random.randint(0,500) < 5
@@ -137,6 +150,8 @@ def isSlotDesired(slot,packdata):
 def findASlotForPack(packData,availables):
     #print len(availables)
     #print packData.name
+    if len(availables)<=0:
+        return None
     slot = availables.pop(0)
     x=0
     while not isSlotDesired(slot, packData):
@@ -160,8 +175,8 @@ def boundingBox(inputData):
     return ( (minlat,minlon),(maxlat,maxlon))
 
 def main():
-    data=readInput('data.csv')
-    newGrid=readInput('next.csv')
+    data,_=readInput('data.csv')
+    newGrid,picks=readInput('next.csv')
     packs= pivotData(data)
 
     cox= boundingBox(data)
@@ -175,19 +190,21 @@ def main():
             if spot=="O":
                 availables.append(Spot(loc.name, i,loc.location))
     random.shuffle(availables)
-    packlist = list(packs.keys())
 
 
     while availables:
-        pack =packlist.pop(0)
+        pTuple =picks.pop(0)
+        pack,count=pTuple
         #print "filling pack " + pack
-        slot = findASlotForPack(packs[pack],availables)
-        packlist.append(pack)
-        output[slot.name].data[slot.pos]=pack
+        for x in xrange(0,count):
+            slot = findASlotForPack(packs[pack],availables)
+            if slot:
+                output[slot.name].data[slot.pos]=pack
+        picks.append(pTuple)
         #print slot
 
 
-    writeout('foo.csv','next.csv', output.itervalues())
+    writeout('foo.csv','next.csv', output.itervalues(), picks)
 
 
 if __name__ == "__main__":
