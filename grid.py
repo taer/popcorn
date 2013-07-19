@@ -5,8 +5,9 @@ from collections import defaultdict
 import math
 import csv
 class Location:
-    def __init__(self,name,lat,lon,data):
+    def __init__(self,name,addr,lat,lon,data):
         self.name=name
+        self.addr=addr
         self.location=(float(lat),float(lon))
         self.data=[]
         for pack in data:
@@ -22,14 +23,15 @@ def readInput(filename):
         for row in spamreader:
             if row[0] =="X": 
                 pass
-            elif row[0]=="======":
+            elif row[0]=="Packs":
                 mode=1
             elif mode==0:
-                name = row[0]+row[1]
+                name = row[0]
+                addr = row[1]
                 lat = row[2]
                 lon = row[3]
                 data=row[4:]
-                x = Location(name,lat,lon,data)
+                x = Location(name,addr,lat,lon,data)
                 inputData.append(x)
             elif mode==1:
                 pac=row[0]
@@ -51,8 +53,8 @@ def writeout(filename,headersFrom, data,picks):
             spamwriter.writerow(row)
 
         for row in data:
-            spamwriter.writerow((row.name,)+row.location+tuple(row.data))
-        spamwriter.writerow(("======",))
+            spamwriter.writerow((row.name,row.addr)+row.location+tuple(row.data))
+        spamwriter.writerow(("packs","picks"))
         for row in picks:
             spamwriter.writerow(row)
 def distance(location1,location2):
