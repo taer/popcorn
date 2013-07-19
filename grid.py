@@ -28,10 +28,9 @@ def readInput(filename):
             elif mode==0:
                 name = row[0]
                 addr = row[1]
-                lat = row[2]
-                lon = row[3]
-                data=row[4:]
-                x = Location(name,addr,lat,lon,data)
+                latlon = row[2].split(",")
+                data=row[3:]
+                x = Location(name,addr,latlon[0],latlon[1],data)
                 inputData.append(x)
             elif mode==1:
                 pac=row[0]
@@ -53,7 +52,7 @@ def writeout(filename,headersFrom, data,picks):
             spamwriter.writerow(row)
 
         for row in data:
-            spamwriter.writerow((row.name,row.addr)+row.location+tuple(row.data))
+            spamwriter.writerow((row.name,row.addr,str(row.location[0])+","+str(row.location[1]))+tuple(row.data))
         spamwriter.writerow(("packs","picks"))
         for row in picks:
             spamwriter.writerow(row)
@@ -163,27 +162,12 @@ def findASlotForPack(packData,availables):
     return slot
 
 
-def boundingBox(inputData):
-    minlon=100000
-    maxlon=-10000
-    minlat=100000
-    maxlat=-10000
-    for l in inputData:
-        minlat = min(minlat,l.location[0])
-        minlon = min(minlon,l.location[1])
-        maxlat = max(maxlat,l.location[0])
-        maxlon = max(maxlon,l.location[1])
-
-    return ( (minlat,minlon),(maxlat,maxlon))
 
 def main():
     data,_=readInput('data.csv')
     newGrid,picks=readInput('next.csv')
     packs= pivotData(data)
 
-    cox= boundingBox(data)
-    print cox
-    print distance(cox[0],cox[1])
     output={}
     availables=[]
     for loc in newGrid:
@@ -205,8 +189,8 @@ def main():
         picks.append(pTuple)
         #print slot
 
-
-    writeout('foo.csv','next.csv', output.itervalues(), picks)
+    outVal = sorted(output.itervalues())
+    writeout('foo.csv','next.csv', outVal, picks)
 
 
 if __name__ == "__main__":
