@@ -32,10 +32,9 @@ txt.innerHTML+=  '<font color="' + getColor(i/20) + '">&#9608;</font>';
     }
 
 			// **** CREATE GOOGLE MAP ****
-			var mapCenter = new google.maps.LatLng(30.507166,-97.716084);
+			var mapCenterA = new google.maps.LatLngBounds( );
 			var map = new google.maps.Map(document.getElementById('map'), {
 				'zoom': 12,
-				'center': mapCenter,
 				'mapTypeId': google.maps.MapTypeId.ROADMAP
 			});
    $.ajax({
@@ -44,11 +43,15 @@ txt.innerHTML+=  '<font color="' + getColor(i/20) + '">&#9608;</font>';
                 dataType: 'json',
                 success: function(data) {
                     data.data.map(function(point){
-                        drawProjectOnMap(map, point);
+                        var pnt=new google.maps.LatLng(point[0], point[1])
+                        mapCenterA.extend(pnt)
+                        drawProjectOnMap(map, pnt);
                    });
                     data.centers.map(function(center){
                         drawCircleOnMap(map, center);
                     });
+                    map.setCenter(mapCenterA.getCenter())
+                    map.fitBounds(mapCenterA)
                 },
                 error: function() {
                     handleError("Could not load XML file - local file access may be restricted (use IE).")
@@ -59,8 +62,8 @@ txt.innerHTML+=  '<font color="' + getColor(i/20) + '">&#9608;</font>';
                     {
                     var marker = new google.maps.Marker({
                       map: map,
-                      position: new google.maps.LatLng(data[0], data[1]),
-                      title: data[0] + ":" + data[1]
+                      position: data,
+                      title: data.toString()
                     });
 
 }
